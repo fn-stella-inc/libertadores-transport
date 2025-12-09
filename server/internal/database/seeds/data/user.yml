@@ -1,0 +1,27 @@
+- username: admin
+  email: admin@example.com
+  password: admin123
+  role: ADMIN
+  first_name: System
+  last_name: Administrator
+  document_type: DNI
+  document_number: "00000001"
+  phone_number: "+51 999 999 999"
+  is_driver: false
+  license_number: ""
+  license_category: ""
+  license_expires_at: "2030-01-01"
+
+- username: driver1
+  email: driver1@example.com
+  password: driver123
+  role: DRIVER
+  first_name: Juan
+  last_name: Perez
+  document_type: DNI
+  document_number: "12345678"
+  phone_number: "+51 988 888 888"
+  is_driver: true
+  license_number: "B123456"
+  license_category: "A3"
+  license_expires_at: "2028-06-30"
