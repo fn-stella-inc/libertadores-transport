@@ -29,8 +29,7 @@ export const AppTopbar = () => {
   return (
     <header className="flex h-14 items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur lg:px-8">
       <div className="flex flex-1 items-center gap-3">
-        <h1 className="text-base font-semibold leading-none md:text-lg">Panel de control</h1>
-        <span className="hidden text-xs text-muted-foreground sm:inline">Gestión de transporte y combustible</span>
+        <h1 className="text-base font-semibold leading-none">Gestión de transporte y combustible</h1>
       </div>
 
       <div className="flex items-center gap-4">
