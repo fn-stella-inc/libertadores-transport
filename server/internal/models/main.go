@@ -6,422 +6,162 @@ import (
 	"github.com/google/uuid"
 )
 
-// CORE: USERS & USER DETAILS
-
-// User = authenticated user via SSO
 type User struct {
-	ID         uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-	Email      string    `gorm:"size:150;not null;uniqueIndex"`
-	NationalID string    `gorm:"size:20;not null;uniqueIndex"` // DNI from SSO
-	CreatedAt  time.Time `gorm:"not null"`
-	UpdatedAt  time.Time `gorm:"not null"`
+	ID           uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
+	Username     string    `gorm:"size:50;not null;uniqueIndex"`
+	Email        string    `gorm:"size:120"`
+	PasswordHash string    `gorm:"type:text"`        // for local credentials (optional if you use separate table)
+	Role         string    `gorm:"size:20;not null"` // e.g. "ADMIN", "DRIVER", "DISPATCHER"
+	IsActive     bool      `gorm:"not null;default:true"`
+	CreatedAt    time.Time `gorm:"not null;default:now()"`
+	UpdatedAt    time.Time `gorm:"not null;default:now()"`
 
-	Notifications     []Notification     `gorm:"foreignKey:UserID"`
-	DocumentTemplates []DocumentTemplate `gorm:"foreignKey:CreatedBy"`
-	Events            []Event            `gorm:"foreignKey:CreatedBy"`
-	Documents         []Document         `gorm:"foreignKey:CreatedBy"`
+	UserInfo *UserInfo `gorm:"foreignKey:UserID"`
+	Driver   *Driver   `gorm:"foreignKey:UserID"`
 
-	// Relations with study / evaluations module
-	Evaluations      []Evaluation      `gorm:"foreignKey:UserID"`
-	StudyAnnotations []StudyAnnotation `gorm:"foreignKey:UserID"`
-	StudyProgresses  []StudyProgress   `gorm:"foreignKey:UserID"`
+	OAuthAccounts []OAuthAccount `gorm:"foreignKey:UserID"`
+	Credentials   []Credential   `gorm:"foreignKey:UserID"`
 }
 
-func (User) TableName() string { return "users" }
+func (User) TableName() string { return "user" }
 
-// UserDetail = certificate beneficiary (may or may not have an account)
-type UserDetail struct {
-	ID         uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-	NationalID string    `gorm:"size:20;not null;uniqueIndex"` // DNI
-	FirstName  string    `gorm:"size:100;not null"`
-	LastName   string    `gorm:"size:100;not null"`
-	Phone      *string   `gorm:"size:30"`
-	Email      *string   `gorm:"size:150"`
-	CreatedAt  time.Time `gorm:"not null"`
-	UpdatedAt  time.Time `gorm:"not null"`
-
-	Documents         []Document         `gorm:"foreignKey:UserDetailID"`
-	EventParticipants []EventParticipant `gorm:"foreignKey:UserDetailID"`
-}
-
-func (UserDetail) TableName() string { return "user_details" }
-
-// NOTIFICATIONS
-
-type Notification struct {
-	ID               uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-	UserID           uuid.UUID `gorm:"type:uuid;not null;index"`
-	Title            string    `gorm:"size:200;not null"`
-	Body             string    `gorm:"type:text;not null"`
-	NotificationType *string   `gorm:"size:50"` // e.g. EVENT, DOCUMENT
-	IsRead           bool      `gorm:"not null;default:false"`
-	ReadAt           *time.Time
-	CreatedAt        time.Time `gorm:"not null"`
+type UserInfo struct {
+	ID             uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
+	UserID         uuid.UUID `gorm:"type:uuid;not null;uniqueIndex"`
+	FirstName      string    `gorm:"size:80;not null"`
+	LastName       string    `gorm:"size:80;not null"`
+	DocumentType   string    `gorm:"size:10"`
+	DocumentNumber string    `gorm:"size:20"`
+	PhoneNumber    string    `gorm:"size:20"`
 
 	User User `gorm:"foreignKey:UserID"`
 }
 
-func (Notification) TableName() string { return "notifications" }
+func (UserInfo) TableName() string { return "user_info" }
 
-// DOCUMENT TYPES, CATEGORIES & TEMPLATES
+type Driver struct {
+	ID                uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
+	UserID            uuid.UUID `gorm:"type:uuid;not null;uniqueIndex"`
+	LicenseNumber     string    `gorm:"size:30;not null"`
+	LicenseCategory   string    `gorm:"size:10;not null"`
+	LicenseExpiration time.Time `gorm:"not null"`
+	Status            string    `gorm:"size:20;not null;default:ACTIVE"`
+	HireDate          *time.Time
+	TerminationDate   *time.Time
 
-type DocumentType struct {
-	ID          uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-	Code        string    `gorm:"size:50;not null;uniqueIndex"` // CERTIFICATE, CONSTANCY, RECOGNITION
-	Name        string    `gorm:"size:100;not null"`
-	Description *string   `gorm:"type:text"`
-	IsActive    bool      `gorm:"not null;default:true"`
-	CreatedAt   time.Time `gorm:"not null"`
-	UpdatedAt   time.Time `gorm:"not null"`
-
-	// Solo esto:
-	Categories        []DocumentCategory `gorm:"foreignKey:DocumentTypeID"`
-	DocumentTemplates []DocumentTemplate `gorm:"foreignKey:DocumentTypeID"`
+	User        User                      `gorm:"foreignKey:UserID"`
+	Assignments []AssignmentDriverVehicle `gorm:"foreignKey:DriverID"`
+	Trips       []Trip                    `gorm:"foreignKey:DriverID"`
 }
 
-func (DocumentType) TableName() string { return "document_types" }
+func (Driver) TableName() string { return "driver" }
 
-// EXCEPTION: numeric autoincrement categories
-type DocumentCategory struct {
-	ID             uint      `gorm:"primaryKey;autoIncrement"`
-	DocumentTypeID uuid.UUID `gorm:"type:uuid;not null;index"` // which type it belongs to
+type AssignmentDriverVehicle struct {
+	ID        uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
+	DriverID  uuid.UUID `gorm:"type:uuid;not null"`
+	VehicleID uuid.UUID `gorm:"type:uuid;not null"`
+	StartDate time.Time `gorm:"not null"`
+	EndDate   *time.Time
 
-	// New: short code used for serial pattern [CATEGORY], e.g. "CUR", "CAP"
-	Code string `gorm:"size:50;not null;default:''"`
-
-	Name        string    `gorm:"size:100;not null"`
-	Description *string   `gorm:"type:text"`
-	IsActive    bool      `gorm:"not null;default:true"`
-	CreatedAt   time.Time `gorm:"not null"`
-	UpdatedAt   time.Time `gorm:"not null"`
-
-	DocumentType      DocumentType       `gorm:"foreignKey:DocumentTypeID"`
-	DocumentTemplates []DocumentTemplate `gorm:"foreignKey:CategoryID"`
+	Driver  Driver  `gorm:"foreignKey:DriverID"`
+	Vehicle Vehicle `gorm:"foreignKey:VehicleID"`
 }
 
-func (DocumentCategory) TableName() string { return "document_categories" }
-
-type DocumentTemplate struct {
-	ID uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-
-	// New: template code / series used for [TYPE / SERIES] in the serial
-	// e.g. "CERT", "CONST", "REC-OTIC"
-	Code string `gorm:"size:50;not null;default:''"`
-
-	Name           string    `gorm:"size:150;not null"`
-	Description    *string   `gorm:"type:text"`
-	DocumentTypeID uuid.UUID `gorm:"type:uuid;not null;index"`
-	CategoryID     *uint     `gorm:"index"`
-
-	// Both are PDF templates:
-	// - PrevFileID: previous/base version
-	// - FileID: current template in use
-	FileID     uuid.UUID `gorm:"type:uuid;not null"`
-	PrevFileID uuid.UUID `gorm:"type:uuid;not null"`
-
-	IsActive  bool       `gorm:"not null;default:true"`
-	CreatedBy *uuid.UUID `gorm:"type:uuid;index"`
-	CreatedAt time.Time  `gorm:"not null"`
-	UpdatedAt time.Time  `gorm:"not null"`
-
-	DocumentType DocumentType      `gorm:"foreignKey:DocumentTypeID"`
-	Category     *DocumentCategory `gorm:"foreignKey:CategoryID"`
-	User         *User             `gorm:"foreignKey:CreatedBy"`
-	Documents    []Document        `gorm:"foreignKey:TemplateID"`
-
-	// NEW: events that use this template
-	Events []Event `gorm:"foreignKey:TemplateID"`
+func (AssignmentDriverVehicle) TableName() string {
+	return "assignment_driver_vehicle"
 }
 
-func (DocumentTemplate) TableName() string { return "document_templates" }
-
-// EVENTS & SCHEDULES
-
-type Event struct {
-	ID uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-
-	// New: whether the event is visible to normal users.
-	// If false, only admins/owners can see it.
-	IsPublic bool `gorm:"not null;default:true"`
-
-	// New: event-level code / base identifier, can be used as part of document serials.
-	// Example: "EVT-2025-OTIC-01"
-	Code string `gorm:"size:100;not null;default:'';index"`
-
-	// New: certificate type/series used in the serial pattern [TYPE / SERIES].
-	// Usually comes from the template Code, but can be overridden here if needed.
-	CertificateSeries string `gorm:"size:50;not null;default:''"`
-
-	// New: hierarchical codes of the major body and issuing units.
-	// Example: "GGR|OTIC" or "GGR|OTIC|DEP-XYZ"
-	// Used to build [MAJOR BODY] - [ISSUING UNIT] part of the serial.
-	OrganizationalUnitsPath string `gorm:"size:255;not null;default:''"`
-
-	Title       string  `gorm:"size:200;not null"`
-	Description *string `gorm:"type:text"`
-
-	// Template associated with the event (optional)
-	TemplateID *uuid.UUID `gorm:"type:uuid;index"`
-
-	Location            string `gorm:"size:200;not null"`
-	MaxParticipants     *int
-	RegistrationOpenAt  *time.Time
-	RegistrationCloseAt *time.Time
-
-	// SCHEDULED, IN_PROGRESS, COMPLETED, CANCELLED, etc.
-	Status    string    `gorm:"size:50;not null;default:'SCHEDULED'"`
-	CreatedBy uuid.UUID `gorm:"type:uuid;not null;index"` // User (organizer/admin)
-	CreatedAt time.Time `gorm:"not null"`
-	UpdatedAt time.Time `gorm:"not null"`
-
-	Template *DocumentTemplate `gorm:"foreignKey:TemplateID"`
-	User     User              `gorm:"foreignKey:CreatedBy"`
-
-	Schedules         []EventSchedule    `gorm:"foreignKey:EventID"`
-	EventParticipants []EventParticipant `gorm:"foreignKey:EventID"`
-	Documents         []Document         `gorm:"foreignKey:EventID"`
-}
-
-func (Event) TableName() string { return "events" }
-
-type EventSchedule struct {
-	ID            uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-	EventID       uuid.UUID `gorm:"type:uuid;not null;index"`
-	StartDatetime time.Time `gorm:"not null"`
-	EndDatetime   time.Time `gorm:"not null"`
-	CreatedAt     time.Time `gorm:"not null"`
-
-	Event Event `gorm:"foreignKey:EventID"`
-}
-
-func (EventSchedule) TableName() string { return "event_schedules" }
-
-type EventParticipant struct {
+type Trip struct {
 	ID                 uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-	EventID            uuid.UUID `gorm:"type:uuid;not null;index:idx_event_userdetail,unique"`
-	UserDetailID       uuid.UUID `gorm:"type:uuid;not null;index:idx_event_userdetail,unique"`
-	RegistrationSource *string   `gorm:"size:50"`                               // SELF, IMPORTED, ADMIN
-	RegistrationStatus string    `gorm:"size:50;not null;default:'REGISTERED'"` // REGISTERED, WAITLIST, CANCELLED
-	AttendanceStatus   string    `gorm:"size:50;not null;default:'PENDING'"`    // PRESENT, ABSENT, PENDING
-	CreatedAt          time.Time `gorm:"not null"`
-	UpdatedAt          time.Time `gorm:"not null"`
+	TripCode           string    `gorm:"size:30;uniqueIndex"`
+	RouteID            uuid.UUID `gorm:"type:uuid;not null"`
+	VehicleID          uuid.UUID `gorm:"type:uuid;not null"`
+	DriverID           uuid.UUID `gorm:"type:uuid;not null"`
+	PlannedDepartureAt time.Time `gorm:"not null"`
+	PlannedArrivalAt   *time.Time
+	ActualDepartureAt  *time.Time
+	ActualArrivalAt    *time.Time
 
-	Event      Event      `gorm:"foreignKey:EventID"`
-	UserDetail UserDetail `gorm:"foreignKey:UserDetailID"`
+	OdometerStartKm *float64 `gorm:"type:numeric(12,2)"`
+	OdometerEndKm   *float64 `gorm:"type:numeric(12,2)"`
+
+	FuelStartL *float64 `gorm:"type:numeric(10,2)"`
+	FuelEndL   *float64 `gorm:"type:numeric(10,2)"`
+
+	TripStatusID uuid.UUID `gorm:"type:uuid;not null"`
+	Notes        string
+
+	Route      Route      `gorm:"foreignKey:RouteID"`
+	Vehicle    Vehicle    `gorm:"foreignKey:VehicleID"`
+	Driver     Driver     `gorm:"foreignKey:DriverID"`
+	TripStatus TripStatus `gorm:"foreignKey:TripStatusID"`
 }
 
-func (EventParticipant) TableName() string { return "event_participants" }
+func (Trip) TableName() string { return "trip" }
 
-// DOCUMENTS & PDF STORAGE
+type OAuthAccount struct {
+	ID                uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
+	UserID            uuid.UUID `gorm:"type:uuid;not null;index"`
+	Provider          string    `gorm:"size:100;not null"` // "google"
+	ProviderAccountID string    `gorm:"size:255;not null"` // Google "sub"
+	Email             string    `gorm:"size:200"`
+	CreatedAt         time.Time `gorm:"not null;default:now()"`
 
-type Document struct {
-	ID           uuid.UUID  `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-	UserDetailID uuid.UUID  `gorm:"type:uuid;not null;index"`
-	EventID      *uuid.UUID `gorm:"type:uuid;index"` // nullable for ad-hoc documents
-	TemplateID   *uuid.UUID `gorm:"type:uuid;index"`
-
-	SerialCode             string    `gorm:"size:100;not null;uniqueIndex"` // full serial built from event/template/category/year/correlative
-	VerificationCode       string    `gorm:"size:100;not null;uniqueIndex"`
-	HashValue              string    `gorm:"size:255;not null"`
-	QRText                 *string   `gorm:"size:255"`
-	IssueDate              time.Time `gorm:"not null"`
-	SignedAt               *time.Time
-	DigitalSignatureStatus string    `gorm:"size:50;not null;default:'PENDING'"` // PENDING, PARTIALLY_SIGNED, SIGNED, ERROR
-	Status                 string    `gorm:"size:50;not null;default:'ISSUED'"`  // ISSUED, ANNULLED, REPLACED, DRAFT
-	CreatedBy              uuid.UUID `gorm:"type:uuid;not null;index"`
-	CreatedAt              time.Time `gorm:"not null"`
-	UpdatedAt              time.Time `gorm:"not null"`
-
-	UserDetail    UserDetail        `gorm:"foreignKey:UserDetailID"`
-	Event         *Event            `gorm:"foreignKey:EventID"`
-	Template      *DocumentTemplate `gorm:"foreignKey:TemplateID"`
-	CreatedByUser User              `gorm:"foreignKey:CreatedBy"`
-	PDFs          []DocumentPDF     `gorm:"foreignKey:DocumentID"`
-
-	// Relations with evaluations / study
-	Evaluations []Evaluation `gorm:"foreignKey:DocumentID"`
+	User User `gorm:"foreignKey:UserID"`
 }
 
-func (Document) TableName() string { return "documents" }
+func (OAuthAccount) TableName() string { return "oauth_account" }
 
-type DocumentPDF struct {
-	ID         uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-	DocumentID uuid.UUID `gorm:"type:uuid;not null;index"`
-
-	// Stage describes which step this PDF represents for the document:
-	// e.g.: "base", "signer_1", "signer_2", "final", "annulled"
-	Stage string `gorm:"size:50;not null"`
-
-	// Version: V1, V2, etc. for re-issues or corrections.
-	Version int `gorm:"not null;default:1"`
-
-	FileName        string    `gorm:"size:255;not null"`
-	FileID          uuid.UUID `gorm:"type:uuid;not null"`
-	FileHash        string    `gorm:"size:255;not null"`
-	FileSizeBytes   *int64
-	StorageProvider *string   `gorm:"size:100"`
-	CreatedAt       time.Time `gorm:"not null"`
-}
-
-func (DocumentPDF) TableName() string { return "document_pdfs" }
-
-// EVALUATIONS
-
-type Evaluation struct {
-	ID          uuid.UUID  `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-	UserID      uuid.UUID  `gorm:"type:uuid;not null;index"`
-	DocumentID  *uuid.UUID `gorm:"type:uuid;index"` // evaluation associated to a document (cert / constancy / etc.)
-	Title       string     `gorm:"type:text;not null"`
-	Description *string    `gorm:"type:text"`
-	Status      string     `gorm:"size:20;not null;default:'pending'"` // pending, answered, reviewed
-	CreatedAt   time.Time  `gorm:"not null;default:CURRENT_TIMESTAMP"`
-	UpdatedAt   time.Time
-
-	User      User                 `gorm:"foreignKey:UserID"`
-	Document  *Document            `gorm:"foreignKey:DocumentID"`
-	Questions []EvaluationQuestion `gorm:"foreignKey:EvaluationID"`
-	Answers   []EvaluationAnswer   `gorm:"foreignKey:EvaluationID"`
-	Scores    []EvaluationScore    `gorm:"foreignKey:EvaluationID"`
-	Docs      []EvaluationDoc      `gorm:"foreignKey:EvaluationID"`
-}
-
-func (Evaluation) TableName() string { return "evaluations" }
-
-type EvaluationQuestion struct {
-	ID             uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-	EvaluationID   uuid.UUID `gorm:"type:uuid;not null;index"`
-	QuestionNumber int       `gorm:"not null"`
-	QuestionText   string    `gorm:"type:text;not null"`
-	MaxScore       float64   `gorm:"type:numeric(5,2);default:1"`
-	CreatedAt      time.Time `gorm:"not null;default:CURRENT_TIMESTAMP"`
-
-	Evaluation Evaluation         `gorm:"foreignKey:EvaluationID"`
-	Answers    []EvaluationAnswer `gorm:"foreignKey:QuestionID"`
-	Scores     []EvaluationScore  `gorm:"foreignKey:QuestionID"`
-}
-
-func (EvaluationQuestion) TableName() string { return "evaluation_questions" }
-
-type EvaluationAnswer struct {
+type Credential struct {
 	ID           uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-	EvaluationID uuid.UUID `gorm:"type:uuid;not null;index"`
-	QuestionID   uuid.UUID `gorm:"type:uuid;not null;index"`
-	ResponseText string    `gorm:"type:text"`
-	CreatedAt    time.Time `gorm:"not null;default:CURRENT_TIMESTAMP"`
+	UserID       uuid.UUID `gorm:"type:uuid;not null;index"`
+	PasswordHash string    `gorm:"type:text;not null"`
+	Provider     string    `gorm:"size:30;not null;default:credentials"` // "credentials"
+	CreatedAt    time.Time `gorm:"not null;default:now()"`
+	UpdatedAt    time.Time `gorm:"not null;default:now()"`
 
-	Evaluation Evaluation         `gorm:"foreignKey:EvaluationID"`
-	Question   EvaluationQuestion `gorm:"foreignKey:QuestionID"`
+	User User `gorm:"foreignKey:UserID"`
 }
 
-func (EvaluationAnswer) TableName() string { return "evaluation_answers" }
+func (Credential) TableName() string { return "credential" }
 
-type EvaluationScore struct {
-	ID           uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-	EvaluationID uuid.UUID `gorm:"type:uuid;not null;index"`
-	QuestionID   uuid.UUID `gorm:"type:uuid;not null;index"`
-	AdminVerdict string    `gorm:"size:20"` // correct, incorrect, partial
-	Score        float64   `gorm:"type:numeric(5,2)"`
-	Remarks      *string   `gorm:"type:text"`
-	ReviewedAt   time.Time `gorm:"not null;default:CURRENT_TIMESTAMP"`
-
-	Evaluation Evaluation         `gorm:"foreignKey:EvaluationID"`
-	Question   EvaluationQuestion `gorm:"foreignKey:QuestionID"`
-}
-
-func (EvaluationScore) TableName() string { return "evaluation_scores" }
-
-type EvaluationDoc struct {
+type Vehicle struct {
 	ID              uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-	EvaluationID    uuid.UUID `gorm:"type:uuid;not null;index"`
-	MarkdownContent string    `gorm:"type:text"`
-	GeneratedAt     time.Time `gorm:"not null;default:CURRENT_TIMESTAMP"`
+	Plate           string    `gorm:"size:10;not null;uniqueIndex"`
+	VehicleTypeID   uuid.UUID `gorm:"type:uuid;not null"`
+	VehicleStatusID uuid.UUID `gorm:"type:uuid;not null"`
+	ManufactureYear int16     `gorm:"not null"`
+	TankCapacityL   float64   `gorm:"type:numeric(10,2)"`
+	ReferenceKmPerL float64   `gorm:"type:numeric(10,2)"`
+	CreatedAt       time.Time `gorm:"not null;default:now()"`
+	DeactivatedAt   *time.Time
 
-	Evaluation Evaluation `gorm:"foreignKey:EvaluationID"`
+	Assignments []AssignmentDriverVehicle `gorm:"foreignKey:VehicleID"`
+	Trips       []Trip                    `gorm:"foreignKey:VehicleID"`
 }
 
-func (EvaluationDoc) TableName() string { return "evaluation_docs" }
+func (Vehicle) TableName() string { return "vehicle" }
 
-// STUDY MATERIALS / REINFORCEMENT
+type Route struct {
+	ID                   uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
+	Code                 string    `gorm:"size:20;not null;uniqueIndex"`
+	Origin               string    `gorm:"size:80;not null"`
+	Destination          string    `gorm:"size:80;not null"`
+	DistanceKm           float64   `gorm:"type:numeric(10,2);not null"`
+	EstimatedDurationMin *int
+	IsActive             bool `gorm:"not null;default:true"`
 
-type StudyMaterial struct {
+	Trips []Trip `gorm:"foreignKey:RouteID"`
+}
+
+func (Route) TableName() string { return "route" }
+
+type TripStatus struct {
 	ID          uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-	Title       string    `gorm:"type:text;not null"`
-	Description *string   `gorm:"type:text"`
-	CreatedAt   time.Time `gorm:"not null;default:CURRENT_TIMESTAMP"`
-	UpdatedAt   time.Time
+	Name        string    `gorm:"size:30;not null"` // PLANNED, IN_PROGRESS, COMPLETED, CANCELLED
+	Description string
 
-	Sections []StudySection `gorm:"foreignKey:MaterialID"`
+	Trips []Trip `gorm:"foreignKey:TripStatusID"`
 }
 
-func (StudyMaterial) TableName() string { return "study_materials" }
-
-type StudySection struct {
-	ID          uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-	MaterialID  uuid.UUID `gorm:"type:uuid;not null;index"`
-	Title       string    `gorm:"type:text;not null"`
-	Description *string   `gorm:"type:text"`
-	OrderIndex  *int
-	CreatedAt   time.Time `gorm:"not null;default:CURRENT_TIMESTAMP"`
-
-	Material    StudyMaterial     `gorm:"foreignKey:MaterialID"`
-	Subsections []StudySubsection `gorm:"foreignKey:SectionID"`
-}
-
-func (StudySection) TableName() string { return "study_sections" }
-
-type StudySubsection struct {
-	ID          uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-	SectionID   uuid.UUID `gorm:"type:uuid;not null;index"`
-	Title       string    `gorm:"type:text;not null"`
-	Description *string   `gorm:"type:text"`
-	VideoURL    *string   `gorm:"type:text"`
-	OrderIndex  *int
-	CreatedAt   time.Time `gorm:"not null;default:CURRENT_TIMESTAMP"`
-
-	Section    StudySection      `gorm:"foreignKey:SectionID"`
-	Resources  []StudyResource   `gorm:"foreignKey:SubsectionID"`
-	Notes      []StudyAnnotation `gorm:"foreignKey:SubsectionID"`
-	Progresses []StudyProgress   `gorm:"foreignKey:SubsectionID"`
-}
-
-func (StudySubsection) TableName() string { return "study_subsections" }
-
-type StudyResource struct {
-	ID           uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-	SubsectionID uuid.UUID `gorm:"type:uuid;not null;index"`
-	FileName     string    `gorm:"type:text"`
-	FileURL      string    `gorm:"type:text"`
-	FileType     string    `gorm:"size:50"` // pdf, xlsx, zip, etc.
-	CreatedAt    time.Time `gorm:"not null;default:CURRENT_TIMESTAMP"`
-
-	Subsection StudySubsection `gorm:"foreignKey:SubsectionID"`
-}
-
-func (StudyResource) TableName() string { return "study_resources" }
-
-type StudyAnnotation struct {
-	ID           uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-	UserID       uuid.UUID `gorm:"type:uuid;not null;index"`
-	SubsectionID uuid.UUID `gorm:"type:uuid;not null;index"`
-	Content      string    `gorm:"type:text"`
-	CreatedAt    time.Time `gorm:"not null;default:CURRENT_TIMESTAMP"`
-	UpdatedAt    time.Time
-
-	User       User            `gorm:"foreignKey:UserID"`
-	Subsection StudySubsection `gorm:"foreignKey:SubsectionID"`
-}
-
-func (StudyAnnotation) TableName() string { return "study_annotations" }
-
-type StudyProgress struct {
-	ID           uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey"`
-	UserID       uuid.UUID `gorm:"type:uuid;not null;index"`
-	SubsectionID uuid.UUID `gorm:"type:uuid;not null;index"`
-	Completed    bool      `gorm:"not null;default:false"`
-	CompletedAt  *time.Time
-
-	User       User            `gorm:"foreignKey:UserID"`
-	Subsection StudySubsection `gorm:"foreignKey:SubsectionID"`
-}
-
-func (StudyProgress) TableName() string { return "study_progress" }
+func (TripStatus) TableName() string { return "trip_status" }
