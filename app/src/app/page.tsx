@@ -34,15 +34,9 @@ export default function Home() {
 
           <div className="flex items-center gap-3">
             <ThemeToggle />
-            <Link href="/auth/sign-in" className="hidden md:inline-flex">
+            <Link href="/main" className="hidden md:inline-flex">
               <Button variant="outline" size="sm">
                 Iniciar sesión
-              </Button>
-            </Link>
-            <Link href="/app">
-              <Button size="sm" className="inline-flex items-center gap-2 shadow-lg shadow-primary/30">
-                Ir al panel
-                <Gauge className="h-4 w-4" />
               </Button>
             </Link>
           </div>
@@ -52,18 +46,15 @@ export default function Home() {
       <main className="flex flex-1 items-center">
         <div className="mx-auto flex max-w-6xl flex-col gap-12 px-6 py-12 md:flex-row md:items-center">
           <section className="flex-1 space-y-6">
-            <p className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-              Nuevo · Sistema unificado de transporte y combustible
-            </p>
+            <p className="inline-flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">Nuevo · Sistema unificado de transporte y combustible</p>
 
             <h1 className="max-w-xl text-4xl font-extrabold leading-tight tracking-tight md:text-5xl">
-              Controla tus <span className="bg-linear-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">rutas, vehículos</span> y combustible en una
-              sola vista.
+              Controla tus <span className="bg-linear-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">rutas, vehículos</span> y combustible en una sola vista.
             </h1>
 
             <p className="max-w-xl text-sm leading-relaxed text-muted-foreground md:text-base">
-              “Los Libertadores” es un sistema diseñado para empresas de transporte interprovincial que necesitan reducir costos operativos mediante el control preciso de viajes,
-              conductores, consumo de combustible y rendimiento por ruta.
+              “Los Libertadores” es un sistema diseñado para empresas de transporte interprovincial que necesitan reducir costos operativos mediante el control preciso de viajes, conductores, consumo de
+              combustible y rendimiento por ruta.
             </p>
 
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -178,9 +169,7 @@ export default function Home() {
       </main>
 
       {/* Small footer */}
-      <footer className="border-t border-border py-4 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} Los Libertadores · Sistema de Gestión de Transporte y Combustible
-      </footer>
+      <footer className="border-t border-border py-4 text-center text-xs text-muted-foreground">© {new Date().getFullYear()} Los Libertadores · Sistema de Gestión de Transporte y Combustible</footer>
     </div>
   );
 }

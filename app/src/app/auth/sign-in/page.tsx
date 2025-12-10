@@ -37,17 +37,13 @@ export default function SignInPage() {
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-10 md:flex-row md:items-center">
           {/* Left info */}
           <section className="hidden flex-1 flex-col gap-4 md:flex">
-            <p className="inline-flex w-fit items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-              Acceso seguro al panel de control
-            </p>
+            <p className="inline-flex w-fit items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">Acceso seguro al panel de control</p>
             <h1 className="text-3xl font-bold leading-tight md:text-4xl">
               Inicia sesión y controla
               <span className="block bg-linear-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">rutas, vehículos y combustible</span>
               en tiempo real.
             </h1>
-            <p className="text-sm text-muted-foreground">
-              Centraliza la gestión de conductores, viajes y abastecimientos de combustible en un solo sistema diseñado para transporte interprovincial.
-            </p>
+            <p className="text-sm text-muted-foreground">Centraliza la gestión de conductores, viajes y abastecimientos de combustible en un solo sistema diseñado para transporte interprovincial.</p>
             <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
               <li>• Seguimiento de viajes en curso y completados.</li>
               <li>• Consumo de combustible por ruta y por vehículo.</li>

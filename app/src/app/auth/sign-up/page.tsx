@@ -41,12 +41,9 @@ export default function SignUpPage() {
               Registro de administradores y personal autorizado
             </p>
             <h1 className="text-3xl font-bold leading-tight md:text-4xl">
-              Crea tu cuenta para <span className="bg-linear-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">gestionar flota y combustible</span> de
-              forma centralizada.
+              Crea tu cuenta para <span className="bg-linear-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">gestionar flota y combustible</span> de forma centralizada.
             </h1>
-            <p className="text-sm text-muted-foreground">
-              Configura usuarios con roles específicos (administrador, logística, conductor) y controla los permisos de acceso al sistema.
-            </p>
+            <p className="text-sm text-muted-foreground">Configura usuarios con roles específicos (administrador, logística, conductor) y controla los permisos de acceso al sistema.</p>
             <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
               <li>• Roles y permisos adaptados a tu operación.</li>
               <li>• Integración futura con autenticación de Google.</li>
